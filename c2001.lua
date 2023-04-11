@@ -23,13 +23,24 @@ function s.initial_effect(c)
 	e2:SetTarget(s.sptg)
 	e2:SetOperation(s.spop)
 	c:RegisterEffect(e2)
+    --Switch with the extra
+	local e3=Effect.CreateEffect(c)
+	e3:SetDescription(aux.Stringid(id,0))
+	e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
+	e3:SetType(EFFECT_TYPE_QUICK_O)
+	e3:SetCode(EVENT_FREE_CHAIN)
+	e3:SetRange(LOCATION_MZONE)
+	e3:SetHintTiming(0,TIMINGS_CHECK_MONSTER_E)
+	e3:SetCost(s.spcost1)
+	e3:SetTarget(s.sptg1)
+	e3:SetOperation(s.spop1)
+	c:RegisterEffect(e3)
 end
+--link
 function s.lcheck(g,lc,sumtype,tp)
 	return g:IsExists(Card.IsSetCard,1,nil,0x0309,lc,sumtype,tp)
 end
-function s.lcheck(g,lc,sumtype,tp)
-	return g:IsExists(Card.IsSetCard,1,nil,0x0309,lc,sumtype,tp)
-end
+--uncompleted
 function s.spfilter(c)
 	return c:IsSpell() or c:IsTrap() and c:IsAbleToGraveAsCost()
 end
@@ -71,4 +82,26 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp,c)
 	if not g then return end
 	Duel.SendtoGrave(g,REASON_COST)
 	g:DeleteGroup()
+end
+--Switch
+  s.listed_series={0x0309}
+function s.spcost1(e,tp,eg,ep,ev,re,r,rp,chk)
+	local c=e:GetHandler()
+	if chk==0 then return c:IsAbleToExtraAsCost() end
+	Duel.Sendto(c,LOCATION_EXTRA,REASON_COST,POS_FACEDOWN,0,0)
+end
+function s.spfilter1(c,e,tp)
+	return c:IsSetCard(0x0309) and c:IsCanBeSpecialSummoned(e,0,tp,true,false) and not c:IsType(TYPE_LINK)
+		and Duel.GetLocationCountFromEx(tp,tp,e:GetHandler(),c,0x0309)>0--0x0309 was 0x60
+end
+function s.sptg1(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(s.spfilter1,tp,LOCATION_EXTRA,0,1,nil,e,tp) end
+	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
+end
+function s.spop1(e,tp,eg,ep,ev,re,r,rp)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+	local g=Duel.SelectMatchingCard(tp,s.spfilter1,tp,LOCATION_EXTRA,0,1,1,nil,e,tp)
+	if #g>0 then
+		Duel.SpecialSummon(g,0,tp,tp,true,false,POS_FACEUP)--0x0309 was 0x60
+	end
 end

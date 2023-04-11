@@ -38,7 +38,7 @@ function s.initial_effect(c)
   --foolish, draw and set
 local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,0))
-	e4:SetCategory(CATEGORY_TOGRAVE)
+	e4:SetCategory(CATEGORY_TOGRAVE+CATEGORY_DRAW)
 	e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e4:SetCost(s.retcost) 
 	e4:SetProperty(EFFECT_FLAG_DELAY)
@@ -53,10 +53,10 @@ function s.lcheck(g,lc,sumtype,tp)
 end
 --uncompleted
 function s.spfilter(c)
-	return c:IsSpell() or c:IsTrap() and c:IsAbleToGraveAsCost()
+	return c:IsSpellTrap() and c:IsAbleToGraveAsCost()
 end
 function s.exfilter(c)
-	return s.spfilter(c) or (c:IsFacedown() and c:IsSpell() or c:IsTrap() and c:IsAbleToGraveAsCost())
+	return s.spfilter(c) or (c:IsFacedown() and c:IsSpellTrap() and c:IsAbleToGraveAsCost())
 end
 function s.spcon(e,c)
 	if c==nil then return true end
@@ -118,37 +118,34 @@ function s.spop1(e,tp,eg,ep,ev,re,r,rp)
 end
   --foolish, draw and set
 function s.tgfilter(c,tp)
-	return c:IsSetCard(0x03db) or c:IsSetCard(0x0381) and c:IsAbleToGrave() and c:IsSpellTrap()
+	return c:IsSetCard(0x0381) and c:IsAbleToGrave() and c:IsSpellTrap()
 end
-function s.setfilter(c)
-	return c:IsSetCard(0x03db) or c:IsSetCard(0x0381) and c:IsSpellTrap() and c:IsSSetable()
+function s.setfilter(c,tp)
+	return c:IsSetCard(0x03db) and c:IsSpellTrap() and c:IsSSetable()
 end
-function s.costfilter(c)
-	return c:IsSetCard(0x0381) or c:SetCard(0x03db) and c:IsSpellTrap() and c:IsAbleToGraveAsCost()
+function s.costfilter(c,tp)
+	return c:IsSetCard(0x0381) and c:IsSpellTrap() and c:IsAbleToGraveAsCost()
 end
 function s.retcost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.tgfilter,tp,LOCATION_DECK,0,1,nil) end
+	if chk==0 then return Duel.IsExistingMatchingCard(s.tgfilter,tp,LOCATION_DECK,0,2,nil) end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
 	local g=Duel.SelectMatchingCard(tp,s.tgfilter,tp,LOCATION_DECK,0,1,1,nil)
 	Duel.SendtoGrave(g,REASON_COST)
 end
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.tgfilter,tp,LOCATION_DECK,0,1,nil,tp)
-		and Duel.GetLocationCount(tp,LOCATION_SZONE)>0 end
-	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,nil,1,tp,LOCATION_DECK)
+    if chk==0 then return Duel.IsExistingMatchingCard(s.setfilter,tp,LOCATION_DECK,0,1,nil) and 
+        Duel.IsPlayerCanDraw(tp,1) end
+    Duel.SetTargetPlayer(tp)
+    Duel.SetTargetParam(1)
+    Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,1)
 end
-function s.operation(e,tp,eg,ep,ev,re,r,rp)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
-	--local g=Duel.SelectMatchingCard(tp,s.tgfilter,tp,LOCATION_DECK,0,1,1,nil,tp)
-	--if #g==0 then return end
---	Duel.SendtoGrave(g,REASON_EFFECT)
-	local og=Duel.GetOperatedGroup():Filter(Card.IsLocation,nil,LOCATION_GRAVE)
-	if #og>0 and Duel.IsExistingMatchingCard(s.setfilter,tp,LOCATION_DECK,0,1,nil) then
-		local tc=Duel.SelectMatchingCard(tp,s.setfilter,tp,LOCATION_DECK,0,1,1,nil):GetFirst()
-		if tc then
-			Duel.BreakEffect()
-			Duel.SSet(tp,tc)
-		  Duel.Draw(tp,1,REASON_EFFECT)
-		end
-	end
+function s.operation(e,tp,eg,ep,ev,re,r,rp,chk)
+    local p,d=Duel.GetChainInfo(0,CHAININFO_TARGET_PLAYER,CHAININFO_TARGET_PARAM)
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
+    local g=Duel.SelectMatchingCard(tp,s.setfilter,tp,LOCATION_DECK,0,1,1,nil)
+    if #g>0 then
+        Duel.SSet(tp,g)
+        Duel.ShuffleDeck(tp)
+        Duel.Draw(p,d,REASON_EFFECT)
+    end
 end
